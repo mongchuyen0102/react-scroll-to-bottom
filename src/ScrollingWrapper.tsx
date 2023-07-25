@@ -1,3 +1,4 @@
+import debounce from 'lodash.debounce';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import React from 'react';
 
@@ -15,21 +16,27 @@ const ScrollingWrapper = () => {
   const [page, setPage] = useState(0);
   const [count, setCount] = useState(0);
   const [data, setData] = useState<number[]>([]); // [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  const [loading, setLoading] = useState(false); // Add the loading state
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const handleScroll = useCallback(() => {
-    if (scrollRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-      if (scrollTop + clientHeight >= scrollHeight) {
-        fetchMoreData(page * 10).then((res: any) => {
-          const { data } = res;
-          setPage((prev) => prev + 1);
-          setCount((prev) => prev + data.length);
-          setData((prev) => [...prev, ...data]);
-        });
+  const handleScroll = useCallback(
+    debounce(() => {
+      if (scrollRef.current) {
+        const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+        if (scrollTop + clientHeight >= scrollHeight - 20 && !loading) {
+          setLoading(true);
+          fetchMoreData(page * 10).then((res: any) => {
+            const { data } = res;
+            setPage((prev) => prev + 1);
+            setCount((prev) => prev + data.length);
+            setData((prev) => [...prev, ...data]);
+            setLoading(false);
+          });
+        }
       }
-    }
-  }, [page]);
+    }, 200), // Set the debounce wait time (in milliseconds)
+    [page]
+  );
 
   useEffect(() => {
     const scrollRefElement = scrollRef.current;
@@ -43,11 +50,13 @@ const ScrollingWrapper = () => {
 
   useEffect(() => {
     console.log('Initial load');
+    setLoading(true); // Set loading to true before fetch
     fetchMoreData(page * 10).then((res: any) => {
       const { data } = res;
       setPage((prev) => prev + 1);
       setCount((prev) => prev + data.length);
       setData((prev) => [...prev, ...data]);
+      setLoading(false); // Set loading back to false after fetch is complete
     });
   }, []);
 
@@ -60,20 +69,23 @@ const ScrollingWrapper = () => {
         ref={scrollRef}
         style={{
           overflow: 'auto',
-          height: '400px',
+          height: '90vh', // Set the height to less than viewport height
           border: '1px solid black',
         }}>
-        {data.map((item) => (
-          <p
-            style={{
-              border: '1px solid black',
-              padding: '1rem',
-              margin: '1rem',
-            }}
-            key={item}>
-            {item}
-          </p>
-        ))}
+        <div style={{ height: '110vh' }}>
+          {/* Increase height here for more content */}
+          {data.map((item) => (
+            <p
+              style={{
+                border: '1px solid black',
+                padding: '1rem',
+                margin: '1rem',
+              }}
+              key={item}>
+              {item}
+            </p>
+          ))}
+        </div>
       </div>
     </div>
   );
